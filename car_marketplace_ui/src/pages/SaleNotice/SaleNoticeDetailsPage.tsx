@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from "axios";
+import {formatDate} from "../../utils.ts";
 
 interface ISaleNoticeDetails {
     id: number;
@@ -29,9 +30,6 @@ const SaleNoticeDetailsPage = () => {
         const fetchSaleNotice = async () => {
             try {
                 const response = await axios.get(`http://localhost:5181/api/SaleNotices/${id}`);
-
-                console.log(response);
-
                 setSaleNotice(response.data);
             } catch (error) {
                 console.error("Error fetching sale notice details", error);
@@ -52,7 +50,7 @@ const SaleNoticeDetailsPage = () => {
                 <tbody>
                 <tr>
                     <td>Created On</td>
-                    <td>{saleNotice.dateOfCreation}</td>
+                    <td>{formatDate(saleNotice.dateOfCreation)}</td>
                 </tr>
                 <tr>
                     <td>Brand</td>

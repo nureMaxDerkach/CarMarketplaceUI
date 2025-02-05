@@ -1,38 +1,7 @@
-import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import axios from "axios";
-
-interface IUserDetails {
-    id: number;
-    firstName: string;
-    lastName: boolean;
-    email: string;
-    phoneNumber: string;
-    country: string;
-    region: string;
-    city: string;
-    saleNotices: ISaleNoticeDetails[];
-}
-
-interface ISaleNoticeDetails {
-    id: number;
-    dateOfCreation: Date;
-    dateOfSale: Date;
-    status: string;
-    car: ICarDetails
-}
-
-interface ICarDetails {
-    id: number;
-    brand: string;
-    model: string;
-    yearOrProduction: number;
-    color: string;
-    cost: number;
-    mileage: number;
-    description: string;
-    number: number;
-}
+import {useEffect, useState} from 'react';
+import {useParams} from 'react-router-dom';
+import {getUserByIdAsync} from "../../api/usersApi.ts";
+import {IUserDetails} from "../../types.ts";
 
 const UserDetails = () => {
     const { id } = useParams<{ id: string }>();
@@ -41,11 +10,8 @@ const UserDetails = () => {
     useEffect(() => {
         const fetchUserDetails = async () => {
             try {
-                const response = await axios.get(`http://localhost:5181/api/Users/${id}`);
-
-                console.log(response);
-
-                setUserDetails(response.data);
+                const user = await getUserByIdAsync(Number(id));
+                setUserDetails(user);
             } catch (error) {
                 console.error("Error fetching sale notice details", error);
             }
@@ -59,7 +25,7 @@ const UserDetails = () => {
     }
 
     return (
-        <div className="sale-notice-details">
+        <div className="user-details">
             <h2>User Details</h2>
             <table className="details-table">
                 <tbody>

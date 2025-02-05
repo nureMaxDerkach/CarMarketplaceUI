@@ -1,21 +1,18 @@
 import React, {useEffect, useState} from "react";
-import axios from "axios";
 import {useNavigate, useParams} from "react-router-dom";
-
-interface IUpdateUserRequest {
-    id: number;
-    firstName: string;
-    lastName: string;
-    email: string;
-    phoneNumber: string;
-    country: string;
-    region: string;
-    city: string;
-}
+import {View} from "../../appConstants.ts";
+import {getUserByIdAsync, updateUserAsync} from "../../api/usersApi.ts";
+import {ICity, ICountry, IRegion, IUpdateUserRequest} from "../../types.ts";
+import {getCountriesAsync} from "../../api/countriesApi.ts";
+import {getRegionsAsync} from "../../api/regionsApi.ts";
+import {getCitiesAsync} from "../../api/citiesApi.ts";
 
 const CreateUser: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const [loading, setLoading] = useState<boolean>(false);
+    const [countries, setCountries] = useState<ICountry[]>([]);
+    const [regions, setRegions] = useState<IRegion[]>([]);
+    const [cities, setCities] = useState<ICity[]>([]);
     const navigate = useNavigate();
     const [user, setUser] = useState<IUpdateUserRequest>({
         id: 0,
@@ -23,8 +20,11 @@ const CreateUser: React.FC = () => {
         lastName: '',
         email: '',
         phoneNumber: '',
+        countryId: 0,
         country: '',
+        regionId: 0,
         region: '',
+        cityId: 0,
         city: ''
     });
 
@@ -32,8 +32,8 @@ const CreateUser: React.FC = () => {
         const fetchData = async () => {
             try {
                 setLoading(true);
-                const response = await axios.get(`http://localhost:5181/api/Users/${id}`);
-                setUser(response.data);
+                const user = await getUserByIdAsync(Number(id));
+                setUser(user);
                 setLoading(false);
             } catch (err) {
                 console.log(err);
@@ -43,6 +43,25 @@ const CreateUser: React.FC = () => {
 
         fetchData();
     }, [id])
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const [countriesData, regionsData, citiesData] = await Promise.all([
+                    getCountriesAsync(),
+                    getRegionsAsync(),
+                    getCitiesAsync()
+                ]);
+                setCountries(countriesData);
+                setRegions(regionsData);
+                setCities(citiesData);
+            } catch (error) {
+                console.error("Failed to fetch data:", error);
+            }
+        };
+
+        fetchData();
+    }, []);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const {name, value} = e.target;
@@ -57,30 +76,77 @@ const CreateUser: React.FC = () => {
         setLoading(true);
 
         try {
-            await axios.put("http://localhost:5181/api/Users", user, {
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-            navigate('/users');
-        } catch (err: any) {
+            await updateUserAsync(user);
+
+            navigate(View.Users);
+        } catch (err) {
             console.error(err);
         } finally {
             setLoading(false);
         }
     };
 
+    const handleSelectChange = <T extends object>(
+        e: React.ChangeEvent<HTMLSelectElement>,
+        setState: React.Dispatch<React.SetStateAction<T>>,
+        fieldName: keyof T
+    ) => {
+        const { value } = e.target;
+        setState((prev) => ({
+            ...prev,
+            [fieldName]: value,
+        }));
+    };
+
+    const renderSelectField = (
+        label: string,
+        fieldName: keyof IUpdateUserRequest,
+        value: number,
+        options: { id: number; name: string }[],
+        onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void
+    ) => (
+        <div style={{ marginBottom: "15px" }}>
+            <label htmlFor={fieldName} style={{ display: "block", marginBottom: "5px" }}>
+                {label}
+            </label>
+            <select
+                id={fieldName}
+                name={fieldName}
+                value={value}
+                onChange={onChange}
+                required
+                style={{
+                    width: "100%",
+                    maxWidth: "522px",
+                    padding: "10px",
+                    borderRadius: "4px",
+                    border: "1px solid #ccc",
+                    marginBottom: "10px",
+                }}
+            >
+                <option value="">Select {label}</option>
+                {options.map((option) => (
+                    <option key={option.id} value={option.id}>
+                        {option.name}
+                    </option>
+                ))}
+            </select>
+        </div>
+    );
+
     if (loading) {
         return <div>Loading...</div>
     }
 
     return (
-        <div style={{ maxWidth: "600px", margin: "auto" }}>
-            <h2 style={{ backgroundColor: "orange", color: "white", padding: "10px", textAlign: "center" }}>Edit User</h2>
+        <div style={{ maxWidth: "550px", margin: "auto" }}>
+            <h2 style={{ backgroundColor: "orange", color: "white", padding: "10px", textAlign: "center", width: '100%' }}>Edit User</h2>
             <form onSubmit={handleSubmit}>
                 <h3>User Information</h3>
-                <div>
-                    <label htmlFor="firstName">First Name</label>
+                <div style={{marginBottom: "15px"}}>
+                    <label htmlFor="firstName" style={{display: "block", marginBottom: "5px"}}>
+                        First Name
+                    </label>
                     <input
                         type="text"
                         id="firstName"
@@ -89,11 +155,21 @@ const CreateUser: React.FC = () => {
                         onChange={handleInputChange}
                         placeholder="First Name"
                         required
-                        style={{width: "100%", marginBottom: "10px", padding: "8px"}}
+                        style={{
+                            width: "100%",
+                            maxWidth: "500px",
+                            padding: "10px",
+                            borderRadius: "4px",
+                            border: "1px solid #ccc",
+                            marginBottom: "10px",
+                        }}
                     />
                 </div>
-                <div>
-                    <label htmlFor="lastName">Last Name</label>
+
+                <div style={{marginBottom: "15px"}}>
+                    <label htmlFor="lastName" style={{display: "block", marginBottom: "5px"}}>
+                        Last Name
+                    </label>
                     <input
                         type="text"
                         id="lastName"
@@ -102,24 +178,44 @@ const CreateUser: React.FC = () => {
                         onChange={handleInputChange}
                         placeholder="Last Name"
                         required
-                        style={{width: "100%", marginBottom: "10px", padding: "8px"}}
+                        style={{
+                            width: "100%",
+                            maxWidth: "500px",
+                            padding: "10px",
+                            borderRadius: "4px",
+                            border: "1px solid #ccc",
+                            marginBottom: "10px",
+                        }}
                     />
                 </div>
-                <div>
-                    <label htmlFor="email">Email</label>
+
+                <div style={{marginBottom: "15px"}}>
+                    <label htmlFor="email" style={{display: "block", marginBottom: "5px"}}>
+                        Email
+                    </label>
                     <input
-                        type="text"
+                        type="email"
                         id="email"
                         name="email"
                         value={user.email}
                         onChange={handleInputChange}
                         placeholder="Email"
                         required
-                        style={{width: "100%", marginBottom: "10px", padding: "8px"}}
+                        style={{
+                            width: "100%",
+                            maxWidth: "500px",
+                            padding: "10px",
+                            borderRadius: "4px",
+                            border: "1px solid #ccc",
+                            marginBottom: "10px",
+                        }}
                     />
                 </div>
-                <div>
-                    <label htmlFor="phoneNumber">Phone Number</label>
+
+                <div style={{marginBottom: "15px"}}>
+                    <label htmlFor="phoneNumber" style={{display: "block", marginBottom: "5px"}}>
+                        Phone Number
+                    </label>
                     <input
                         type="text"
                         id="phoneNumber"
@@ -128,48 +224,27 @@ const CreateUser: React.FC = () => {
                         onChange={handleInputChange}
                         placeholder="Phone Number"
                         required
-                        style={{width: "100%", marginBottom: "10px", padding: "8px"}}
+                        style={{
+                            width: "100%",
+                            maxWidth: "500px",
+                            padding: "10px",
+                            borderRadius: "4px",
+                            border: "1px solid #ccc",
+                            marginBottom: "10px",
+                        }}
                     />
                 </div>
-                <div>
-                    <label htmlFor="country">Country</label>
-                    <input
-                        type="text"
-                        id="country"
-                        name="country"
-                        value={user.country}
-                        onChange={handleInputChange}
-                        placeholder="Country"
-                        required
-                        style={{width: "100%", marginBottom: "10px", padding: "8px"}}
-                    />
-                </div>
-                <div>
-                    <label htmlFor="region">Region</label>
-                    <input
-                        type="text"
-                        id="region"
-                        name="region"
-                        value={user.region}
-                        onChange={handleInputChange}
-                        placeholder="Region"
-                        required
-                        style={{width: "100%", marginBottom: "10px", padding: "8px"}}
-                    />
-                </div>
-                <div>
-                    <label htmlFor="city">City</label>
-                    <input
-                        type="text"
-                        id="city"
-                        name="city"
-                        value={user.city}
-                        onChange={handleInputChange}
-                        placeholder="City"
-                        required
-                        style={{width: "100%", marginBottom: "10px", padding: "8px"}}
-                    />
-                </div>
+
+                {renderSelectField("Country", "countryId", user.countryId, countries, (e) =>
+                    handleSelectChange<IUpdateUserRequest>(e, setUser, 'countryId')
+                )}
+                {renderSelectField("Region", "regionId", user.regionId, regions, (e) =>
+                    handleSelectChange<IUpdateUserRequest>(e, setUser, 'regionId')
+                )}
+                {renderSelectField("City", "cityId", user.cityId, cities, (e) =>
+                    handleSelectChange<IUpdateUserRequest>(e, setUser, 'cityId')
+                )}
+
                 <button
                     type="submit"
                     style={{
@@ -178,7 +253,7 @@ const CreateUser: React.FC = () => {
                         padding: "10px",
                         border: "none",
                         cursor: "pointer",
-                        width: "100%",
+                        width: "522px"
                     }}
                 >
                     Save
